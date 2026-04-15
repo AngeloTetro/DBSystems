@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card op-card op5">
+  <h3>Operation 5 - Ranked Locations</h3>
+  <p class="page-lead">Locations sorted by number of registered bookings.</p>
+
+  {% if rows %}
+  <table>
+    <thead>
+      <tr>
+        <th>Location Code</th>
+        <th>Booking Count</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td>{{ r[0] }}</td>
+        <td>{{ r[1] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-note">No ranked locations available yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

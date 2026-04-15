@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card op-card op2">
+  <h3>Operation 2 - Add Booking</h3>
+  <p class="page-lead">Insert a booking and bind it to customer, event location, and setup team.</p>
+  <form method="post">
+    <div>
+      <label>Booking Code</label>
+      <input name="booking_code" required>
+    </div>
+
+    <div>
+      <label>Booking Type</label>
+      <select name="booking_type" required>
+        <option value="one-time">one-time</option>
+        <option value="recurring">recurring</option>
+        <option value="seasonal">seasonal</option>
+        <option value="promotional">promotional</option>
+      </select>
+    </div>
+
+    <div>
+      <label>Booking Channel</label>
+      <select name="booking_channel" required>
+        <option value="website">website</option>
+        <option value="phone">phone</option>
+        <option value="postal">postal</option>
+        <option value="email">email</option>
+      </select>
+    </div>
+
+    <div>
+      <label>Booking Date</label>
+      <input type="date" name="booking_date" required>
+    </div>
+
+    <div>
+      <label>Duration (days)</label>
+      <input type="number" name="duration_days" required>
+    </div>
+
+    <div>
+      <label>Cost</label>
+      <input type="number" step="0.01" name="cost" required>
+    </div>
+
+    <div>
+      <label>Customer Code</label>
+      <input name="customer_code" required>
+    </div>
+
+    <div>
+      <label>Location Code</label>
+      <input name="location_code" required>
+    </div>
+
+    <div>
+      <label>Team Code</label>
+      <input name="team_code" required>
+    </div>
+
+    <div class="full-row">
+      <button type="submit">Submit</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

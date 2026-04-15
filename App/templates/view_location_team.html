@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card op-card op4">
+  <h3>Operation 4 - View Team by Location</h3>
+  <p class="page-lead">Fetch the setup team associated with a given customer/location pair.</p>
+  <form method="post">
+    <div>
+      <label>Customer Code</label>
+      <input name="customer_code" required>
+    </div>
+
+    <div>
+      <label>Location Code</label>
+      <input name="location_code" required>
+    </div>
+
+    <div class="full-row">
+      <button type="submit">Search</button>
+    </div>
+  </form>
+
+  {% if result %}
+  <div class="result-box"><strong>Team:</strong> {{ result }}</div>
+  {% endif %}
+</div>
+{% endblock %}

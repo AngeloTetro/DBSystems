@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card op-card op3">
+  <h3>Operation 3 - Add Event Location</h3>
+  <p class="page-lead">Register location details and initial logistics constraints for a customer.</p>
+  <form method="post">
+    <div>
+      <label>Location Code</label>
+      <input name="location_code" required>
+    </div>
+
+    <div>
+      <label>Customer Code</label>
+      <input name="customer_code" required>
+    </div>
+
+    <div class="full-row">
+      <label>Street</label>
+      <input name="street" required>
+    </div>
+
+    <div>
+      <label>House Number</label>
+      <input name="house_number" required>
+    </div>
+
+    <div>
+      <label>Postal Code</label>
+      <input name="postal_code" required>
+    </div>
+
+    <div>
+      <label>City</label>
+      <input name="city" required>
+    </div>
+
+    <div>
+      <label>Province</label>
+      <input name="province" required>
+    </div>
+
+    <div>
+      <label>Setup Time Estimate</label>
+      <input type="number" name="setup_time_est" required>
+    </div>
+
+    <div>
+      <label>Equipment Capacity</label>
+      <input type="number" name="equipment_capacity" required>
+    </div>
+
+    <div class="full-row">
+      <button type="submit">Submit</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

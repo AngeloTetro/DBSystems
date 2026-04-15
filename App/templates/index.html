@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+  <h2>StageUp Operations Dashboard</h2>
+  <p class="page-lead">One interface, five business operations, direct integration with Oracle procedures and views.</p>
+
+  <div class="dashboard-grid">
+    <div class="dash-item">
+      <strong>Operation 1</strong>
+      Register a new customer (individual or company).
+    </div>
+    <div class="dash-item">
+      <strong>Operation 2</strong>
+      Record a booking linked to customer, location, and setup team.
+    </div>
+    <div class="dash-item">
+      <strong>Operation 3</strong>
+      Add a new event location for a registered customer.
+    </div>
+    <div class="dash-item">
+      <strong>Operation 4</strong>
+      Retrieve the team associated with a specific customer/location pair.
+    </div>
+    <div class="dash-item">
+      <strong>Operation 5</strong>
+      Display ranked locations by booking count.
+    </div>
+  </div>
+</div>
+{% endblock %}

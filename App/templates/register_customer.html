@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card op-card op1">
+  <h3>Operation 1 - Register Customer</h3>
+  <p class="page-lead">Create a new individual or company customer record.</p>
+  <form method="post">
+    <div>
+      <label>Customer Code</label>
+      <input name="customer_code" required>
+    </div>
+
+    <div>
+      <label>Phone</label>
+      <input name="phone" required>
+    </div>
+
+    <div class="full-row">
+      <label>Email</label>
+      <input name="email" required>
+    </div>
+
+    <div>
+      <label>Customer Type</label>
+      <select name="customer_type" required>
+        <option value="individual">individual</option>
+        <option value="company">company</option>
+      </select>
+    </div>
+
+    <div>
+      <label>First Name (individual)</label>
+      <input name="first_name">
+    </div>
+
+    <div>
+      <label>Last Name (individual)</label>
+      <input name="last_name">
+    </div>
+
+    <div class="full-row">
+      <label>Company Name (company)</label>
+      <input name="company_name">
+    </div>
+
+    <div class="full-row">
+      <button type="submit">Submit</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,120 @@
+\documentclass[12pt]{book}
+\usepackage[a4paper,top=2cm, bottom=2cm, right=1.9cm, left=1.9cm]{geometry}
+
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{listings}
+\usepackage[hyphens]{url}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage[most]{tcolorbox}
+\usepackage{setspace}
+\usepackage[skip=10pt plus1pt, indent=0pt]{parskip}
+\usepackage{booktabs}
+\usepackage{mathtools}
+\usepackage{subcaption}
+\usepackage{titlesec}
+\usepackage{tabularx}
+\usepackage{fancyhdr}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage{array}
+\usepackage{xltabular}
+\usepackage[nottoc]{tocbibind}
+\usepackage[colorlinks=true,linkcolor=black,anchorcolor=black,citecolor=black,filecolor=black,menucolor=black,runcolor=black,urlcolor=black,backref=page]{hyperref}
+
+% Show a placeholder box if an image file is missing.
+\newcommand{\safeincludegraphics}[2][]{%
+    \IfFileExists{#2}{%
+        \includegraphics[#1]{#2}%
+    }{%
+        \fbox{\parbox[c][4cm][c]{0.8\linewidth}{\centering Missing image\\\texttt{\detokenize{#2}}}}%
+    }%
+}
+
+% colors
+\definecolor{drawgray}{HTML}{666666}
+\definecolor{drawgray_l}{HTML}{F5F5F5}
+\definecolor{drawblue}{HTML}{6C8EBF}
+\definecolor{drawblue_l}{HTML}{DAE8FC}
+\definecolor{drawgreen}{HTML}{82B366}
+\definecolor{drawgreen_l}{HTML}{D5E8D4}
+\definecolor{draworange}{HTML}{D79B00}
+\definecolor{draworange_l}{HTML}{FFE6CC}
+\definecolor{drawyellow}{HTML}{D6B656}
+\definecolor{drawyellow_l}{HTML}{FFF2CC}
+\definecolor{drawred}{HTML}{B85450}
+\definecolor{drawred_l}{HTML}{EA6B66}
+\definecolor{drawviolet}{HTML}{9673A6}
+\definecolor{drawviolet_l}{HTML}{E1D5E7}
+\definecolor{drawblackish}{HTML}{422222}
+
+\definecolor{deepblue}{rgb}{0,0,0.5}
+\definecolor{deepgreen}{rgb}{0,0.5,0}
+
+\lstset{
+    language=SQL,
+    morekeywords={AFTER, INSTEAD, OF, REFERENCING, FOR, EACH, ROW, DECLARE, IF, TYPE, NEW, RETURNS, SELF, BEGIN, END, CONSTRUCTOR, UNDER, STATIC, INSTANCE, RETURN, OVERRIDING, FINAL, NOT, INSTANTIABLE, UNNEST, MULTISET, ARRAY, COLLECT, METHOD, REF, MEMBER, FUNCTION, PROCEDURE, PRAGMA, RESTRICT_REFERENCES, WNDS, RNDS, TABLE, WITH, ASSIGNMENT, OPTIONS, SCOPE, NESTED, STORE, DEREF, VARRAY, OBJECT, DBMS_OUTPUT, PUT_LINE, INSERTING, UPDATING, THEN, LOOP, EXTEND, TRUNC, DBMS_RANDOM, TO_CHAR, TO_DATE, REPLACE, BEFORE, COMPOUND, OLD, RAISE_APPLICATION_ERROR, SYSDATE, STATEMENT, IS, ROUND, NVL, ELSIF, DUAL, RAWTOHEX, GUID, SYS},
+    framesep=1pt,
+    xleftmargin=0pt,
+    framexleftmargin=0pt,
+    frame=tb,
+    framerule=1pt,
+    basicstyle=\ttfamily\footnotesize,
+    keywordstyle=\color{deepblue},
+    commentstyle=\color{deepgreen},
+    stringstyle=\color{red},
+    breaklines=true,
+    tabsize=4,
+    showstringspaces=false,
+    mathescape
+}
+
+% 1.15 spacing
+\setstretch{1.15}
+
+% Fancy header
+\pagestyle{fancy}
+\renewcommand{\chaptermark}[1]{\markboth{#1}{}}
+\renewcommand{\sectionmark}[1]{\markright{#1}}
+\fancyhead{}
+\fancyhead[LE]{{\color{black!40}\thepage}}
+\fancyhead[RE]{\bfseries\normalfont {\color{black!40}\nouppercase{\rightmark}}}
+\fancyhead[LO]{\bfseries\normalfont {\color{black!40}\nouppercase{Chapter \thechapter: \leftmark}}}
+\fancyhead[RO]{{\color{black!40}\thepage}}
+\setlength{\headheight}{15pt}
+
+% Chapter title
+\definecolor{gray75}{gray}{0.75}
+\newcommand{\hsp}{\hspace{20pt}}
+\titleformat{\chapter}[hang]{\Huge\bfseries}{\selectfont \thechapter\hsp\textcolor{green}{|}\hsp}{0pt}{\Huge\bfseries}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=drawblackish,
+    breaklinks=true,
+    citecolor=drawblackish,
+    urlcolor=drawblue
+}
+
+\begin{document}
+
+\input{front}
+\restoregeometry
+
+\tableofcontents
+\newpage
+
+\pagestyle{fancy}
+
+\input{pages/1_conceptual_design}
+\input{pages/2_logical_design}
+\input{pages/3_implementation}
+\input{pages/5_physical_design}
+\input{pages/6_web_app}
+
+\end{document}
+
+
+

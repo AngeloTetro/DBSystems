@@ -1,0 +1,327 @@
+\chapter{Logical Design}
+
+\section*{Volumes Table}
+
+We consider a one-year observation window for volume estimation.
+
+\begin{table}[H]
+    \centering
+    \resizebox{\textwidth}{!}{
+    \begin{tabular}{|l|c|c|p{9.5cm}|}
+    \hline
+    \textbf{Concept} & \textbf{Type} & \textbf{Volume} & \textbf{Why} \\
+    \hline
+    Depot & E & 10 & By specification. \\
+    \hline
+    Setup Team & E & 100 & By specification. \\
+    \hline
+    Member & E & 1000 & By specification: each setup team can have at most 10 members, so $100 \cdot 10 = 1000$. \\
+    \hline
+    Booking & E & 50000 & 1:1 with Place. \\
+    \hline
+    Special Booking & E & 1000 & Assumption: special rentals are much more occasional than the other booking types. \\
+    \hline
+    One-Time Booking & E & 40000 & Assumption: one-time bookings are the most frequent booking type. \\
+    \hline
+    Recurrent Booking & E & 9000 & Assumption: recurrent bookings include seasonal contracts and represent the remaining recurring workload. \\
+    \hline
+    Event Location & E & 1000 & By specification. \\
+    \hline
+    Customer & E & 500 & Assumption: each customer has on average at least 2 event locations, so $1000 / 2 = 500$. \\
+    \hline
+    Individual Customer & E & 400 & Assumption: 4/5 of customers are individuals. \\
+    \hline
+    Company Customer & E & 100 & Assumption: 1/5 of customers are companies. \\
+    \hline
+    Employ & R & 100 & 1:1 with Setup Team. \\
+    \hline
+    Works In & R & 1000 & 1:1 with Member. \\
+    \hline
+    Handle & R & 50000 & 1:1 with Booking. \\
+    \hline
+    Delivered To & R & 50000 & 1:1 with Booking. \\
+    \hline
+    Has & R & 1000 & 1:1 with Event Location. \\
+    \hline
+    Place & R & 50000 & Assumption: each customer places 100 bookings, so $500 \cdot 100 = 50{,}000$. \\
+    \hline
+    \end{tabular}
+    }
+\end{table}
+
+\section*{Operations Table}
+
+The operation set is taken directly from the track.
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|c|c|p{10cm}|c|}
+    \hline
+    \textbf{Op.} & \textbf{Type} & \textbf{Description} & \textbf{Frequency} \\
+    \hline
+    1 & I & Enter all data related to a new customer & 10/day \\
+    \hline
+    2 & I & Record a new booking & 300/day \\
+    \hline
+    3 & I & Register a new event location & 50/day \\
+    \hline
+    4 & I & View the team that handled setups at a specific event location & 20/day \\
+    \hline
+    5 & I & Print event locations sorted by number of bookings (descending) & 5/day \\
+    \hline
+    \end{tabular}
+\end{table}
+
+\section*{Operations Analysis}
+
+\subsection*{Operation 1: Enter all data related to a new customer}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|l|c|c|c|p{6.3cm}|}
+    \hline
+    \textbf{Concept} & \textbf{Type} & \textbf{ACC} & \textbf{ACC Type} & \textbf{Why} \\
+    \hline
+    Customer & E & 1 & W & Create the customer. \\
+    \hline
+    Event Location & E & 2 & W & Create the two event locations. \\
+    \hline
+    Customer & E & 1 & R & Read the ID of the newly created customer. \\
+    \hline
+    Event Location & E & 2 & R & Read the two event locations for the customer. \\
+    \hline
+    Has & R & 2 & W & Create the two ownership relationships. \\
+    \hline
+    \end{tabular}
+\end{table}
+
+\textbf{Operation cost}: $(2 \cdot (1 + 2 + 2) + (1 + 2)) \cdot 10 = 130$ accesses/day.
+
+\subsection*{Operation 2: Record a new booking}
+
+For creating a new booking, we usually start from the customer ID and the code of the selected event location. Then, based on that location, we identify the setup team that covers the corresponding municipality/area.
+
+Access \textit{without} redundancy:
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|l|c|c|c|p{6.3cm}|}
+    \hline
+    \textbf{Concept} & \textbf{Type} & \textbf{ACC} & \textbf{ACC Type} & \textbf{Why} \\
+    \hline
+    Booking & E & 1 & W & Create the booking. \\
+    \hline
+    Delivered To & R & 1 & W & Create the relationship with the selected event location. \\
+    \hline
+    Place & R & 1 & W & Create the relationship with the customer. \\
+    \hline
+    Event Location & E & 1 & R & Read the city/province of the selected event location to identify the serving depot. \\
+    \hline
+    Depot & E & 10 & R & Find the depot that covers the area of the selected event location. \\
+    \hline
+    Employ & R & 10 & R & Find the candidate setup teams linked to the selected depot. \\
+    \hline
+    Handle & R & 1 & W & Create the relationship between booking and selected setup team. \\
+    \hline
+    \end{tabular}
+\end{table}
+
+\textbf{Operation cost} (\textit{without redundancy}): $29 \cdot 300 = 8700$ accesses/day.
+
+Access \textit{with} redundancy:
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|l|c|c|c|p{6.3cm}|}
+    \hline
+    \textbf{Concept} & \textbf{Type} & \textbf{ACC} & \textbf{ACC Type} & \textbf{Why} \\
+    \hline
+    Booking & E & 1 & W & Create the booking. \\
+    \hline
+    Delivered To & R & 1 & W & Create the relationship with the selected event location. \\
+    \hline
+    Place & R & 1 & W & Create the relationship with the customer. \\
+    \hline
+    Event Location & E & 1 & R & Read the city/province of the selected event location to identify the serving depot. \\
+    \hline
+    Depot & E & 10 & R & Find the depot that covers the area of the selected event location. \\
+    \hline
+    Employ & R & 10 & R & Find the candidate setup teams linked to the selected depot. \\
+    \hline
+    Setup Team & E & 1 & R & Read the \texttt{n. Installations} of the selected setup team. \\
+    \hline
+    Setup Team & E & 1 & W & Update the \texttt{n. Installations} for the selected setup team. \\
+    \hline
+    Handle & R & 1 & W & Create the relationship between booking and selected setup team. \\
+    \hline
+    \end{tabular}
+\end{table}
+
+\textbf{Operation cost} (\textit{with redundancy}): $32 \cdot 300 = 9600$ accesses/day.
+
+\subsection*{Operation 3: Register a new event location}
+
+For registering a new event location, we usually already have the customer ID, since the customer must be authenticated before adding a location.
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|l|c|c|c|p{6.3cm}|}
+    \hline
+    \textbf{Concept} & \textbf{Type} & \textbf{ACC} & \textbf{ACC Type} & \textbf{Why} \\
+    \hline
+    Event Location & E & 1 & W & Create the event location. \\
+    \hline
+    Has & R & 1 & W & Create the relationship with the customer. \\
+    \hline
+    \end{tabular}
+\end{table}
+
+\textbf{Operation cost}: $4 \cdot 50 = 200$ accesses/day.
+
+\subsection*{Operation 4: View the team that handled setups at a specific event location}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|l|c|c|c|p{6.3cm}|}
+    \hline
+    \textbf{Concept} & \textbf{Type} & \textbf{ACC} & \textbf{ACC Type} & \textbf{Why} \\
+    \hline
+    Event Location & E & 1 & R & Read the ID of the selected event location. \\
+    \hline
+    Delivered To & R & 50 & R & Average of 50 bookings per location: $50000 / 1000 = 50$. \\
+    \hline
+    Booking & E & 50 & R & 1:1 with Delivered To, one booking for each delivered-to instance. \\
+    \hline
+    Handle & R & 50 & R & 1:1 with Booking, retrieve the team relation for each booking. \\
+    \hline
+    \end{tabular}
+\end{table}
+
+\textbf{Operation cost}: $151 \cdot 20 = 3020$ accesses/day.
+
+\subsection*{Operation 5: Print event locations sorted by number of bookings}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|l|c|c|c|p{6.3cm}|}
+    \hline
+    \textbf{Concept} & \textbf{Type} & \textbf{ACC} & \textbf{ACC Type} & \textbf{Why} \\
+    \hline
+    Delivered To & R & 50000 & R & Read all relationship instances to count occurrences of each event location ID. \\
+    \hline
+    Event Location & E & 1000 & R & Access and print the actual event location data. \\
+    \hline
+    \end{tabular}
+\end{table}
+
+\textbf{Operation cost}: $(50000 + 1000) \cdot 5 = 255000$ accesses/day.
+
+\section*{Design Considerations}
+
+In this section, redundancy and generalization situations are analyzed.
+
+\subsection*{Setup Team n. Installations}
+
+The attribute \texttt{n. Installations} in \texttt{Setup Team} is removed from the logical baseline as a stored redundancy. The comparison on Operation 2 shows that maintaining this counter increases write cost (additional read/write on setup team), while none of the required operations explicitly needs that value as direct output.
+
+\subsection*{Relation Place (Customer-Booking)}
+
+The relation \texttt{Place} is redundant, because customer information is still reachable through \texttt{Has} (Customer-Event Location) together with \texttt{Delivered To} (Booking-Event Location).
+
+\textbf{Operation 2 with \texttt{Place}} (original table):
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|l|c|c|c|p{6.3cm}|}
+    \hline
+    \textbf{Concept} & \textbf{Type} & \textbf{ACC} & \textbf{ACC Type} & \textbf{Why} \\
+    \hline
+    Booking & E & 1 & W & Create the booking. \\
+    \hline
+    Delivered To & R & 1 & W & Create the relationship with the selected event location. \\
+    \hline
+    Place & R & 1 & W & Create the relationship with the customer. \\
+    \hline
+    Event Location & E & 1 & R & Read the city/province of the selected event location to identify the serving depot. \\
+    \hline
+    Depot & E & 10 & R & Find the depot that covers the area of the selected event location. \\
+    \hline
+    Employ & R & 10 & R & Find the candidate setup teams linked to the selected depot. \\
+    \hline
+    Handle & R & 1 & W & Create the relationship between booking and selected setup team. \\
+    \hline
+    \end{tabular}
+\end{table}
+
+\textbf{Operation 2 with \texttt{Has} replacing \texttt{Place}}:
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{|l|c|c|c|p{6.3cm}|}
+    \hline
+    \textbf{Concept} & \textbf{Type} & \textbf{ACC} & \textbf{ACC Type} & \textbf{Why} \\
+    \hline
+    Booking & E & 1 & W & Create the booking. \\
+    \hline
+    Delivered To & R & 1 & W & Create the relationship with the selected event location. \\
+    \hline
+    \textbf{Has} & \textbf{R} & \textbf{1} & \textbf{R} & \textbf{Check customer ownership of the selected event location (replacement row).} \\
+    \hline
+    Event Location & E & 1 & R & Read the city/province of the selected event location to identify the serving depot. \\
+    \hline
+    Depot & E & 10 & R & Find the depot that covers the area of the selected event location. \\
+    \hline
+    Employ & R & 10 & R & Find the candidate setup teams linked to the selected depot. \\
+    \hline
+    Handle & R & 1 & W & Create the relationship between booking and selected setup team. \\
+    \hline
+    \end{tabular}
+\end{table}
+
+\[
+\text{With Place: } (2 \cdot 4 + 21) \cdot 300 = 29 \cdot 300 = 8700\ \text{accesses/day}
+\]
+\[
+\text{With Has replacement: } (2 \cdot 3 + 22) \cdot 300 = 28 \cdot 300 = 8400\ \text{accesses/day}
+\]
+
+\noindent The replacement preserves functionality and slightly reduces weighted accesses, so \texttt{Place} is removed from the logical restructuring.
+
+\subsection*{Partitioning and Merging Choices}
+
+For \texttt{Booking}, the specialization (Special / One-Time / Recurrent) is collapsed into a single entity. The entity keeps standard booking attributes and introduces:
+
+\begin{itemize}
+    \item a boolean \texttt{IsSpecial};
+    \item an \texttt{Interval} attribute for recurrent behavior.
+\end{itemize}
+
+Interpretation rule:
+
+\begin{itemize}
+    \item if \texttt{IsSpecial = TRUE}, the booking is a special rental;
+    \item if \texttt{Interval} is greater than zero, the booking is recurrent.
+\end{itemize}
+
+For \texttt{Customer}, specialization is maintained, because \texttt{Individual} and \texttt{Company} have distinct, non-overlapping attributes.
+
+\subsection*{Event Location Identifier After Place Removal}
+
+After removing \texttt{Place}, \texttt{Event Location} is treated with an autonomous unique code (no longer customer-scoped). This keeps the \texttt{Booking}-\texttt{Event Location} connection independent and supports the replacement of \texttt{Place} with the \texttt{Delivered To} + \texttt{Has} navigation path.
+
+\section*{UML Schema}
+
+The following UML schema summarizes the final logical structure adopted in this chapter.
+
+\begin{figure}[H]
+    \centering
+    \safeincludegraphics[width=0.92\textwidth]{images/UMLFINAL.png}
+    \caption{UML Schema}
+\end{figure}
+
+
+
+
+
+
+

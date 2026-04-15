@@ -1,0 +1,267 @@
+\chapter{Physical Design}
+
+This chapter discusses physical optimization choices for the five required operations.
+The analysis is based on \texttt{EXPLAIN PLAN} and query outputs captured in SQL Developer.
+\section{Operation 1: Register new customer}
+
+\textbf{Query type:} INSERT on CUSTOMER
+
+\begin{lstlisting}
+INSERT INTO CUSTOMER VALUES (
+    CustomerTY(:taxcode, :customer_type, :first_name, :last_name, :vat, :company_name)
+);
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \safeincludegraphics[width=0.95\textwidth]{images/op1explain.png}
+    \caption{Operation 1 - EXPLAIN PLAN}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \safeincludegraphics[width=0.85\textwidth]{images/op1output.png}
+    \caption{Operation 1 - Query output}
+\end{figure}
+
+\textbf{Considerations:}
+\begin{itemize}
+    \item This is a write operation with primary-key validation only.
+    \item No additional secondary index is justified.
+\end{itemize}
+
+\section{Operation 2: Record new booking}
+
+\textbf{Query type:} INSERT on BOOKING with \texttt{REF} resolution and trigger checks
+
+\begin{lstlisting}
+INSERT INTO BOOKING VALUES (
+    BookingTY(
+        :code,
+        :type,
+        :cost,
+        :book_date,
+        :interval_m,
+        :is_special,
+        (SELECT REF(st) FROM SETUPTEAM st WHERE st.Code = :team_code),
+        (SELECT REF(el) FROM EVENTLOCATION el WHERE el.Code = :location_code)
+    )
+);
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \safeincludegraphics[width=0.95\textwidth]{images/op2explain.png}
+    \caption{Operation 2 - EXPLAIN PLAN}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \safeincludegraphics[width=0.85\textwidth]{images/op2output.png}
+    \caption{Operation 2 - Query output}
+\end{figure}
+
+\textbf{Considerations:}
+\begin{itemize}
+    \item Lookup by \texttt{SETUPTEAM.Code} and \texttt{EVENTLOCATION.Code} is already supported by primary-key indexes.
+    \item Additional indexing is not needed for this insert-dominant operation.
+\end{itemize}
+
+\section{Operation 3: Register new event location}
+
+\textbf{Query type:} INSERT on EVENTLOCATION
+
+\begin{lstlisting}
+INSERT INTO EVENTLOCATION VALUES (
+    EventLocationTY(
+        :code,
+        :address,
+        :number_h,
+        :city,
+        :prov,
+        :zip,
+        (SELECT REF(cu) FROM CUSTOMER cu WHERE cu.TaxCode = :customer_taxcode)
+    )
+);
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \safeincludegraphics[width=0.95\textwidth]{images/op3explain.png}
+    \caption{Operation 3 - EXPLAIN PLAN}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \safeincludegraphics[width=0.85\textwidth]{images/op3output.png}
+    \caption{Operation 3 - Query output}
+\end{figure}
+
+\textbf{Considerations:}
+\begin{itemize}
+    \item \texttt{CUSTOMER.TaxCode} is primary key and already indexed.
+    \item No additional index is justified for this write operation.
+\end{itemize}
+
+\section{Operation 4: View team handling a specific location}
+
+\textbf{Query type:} SELECT on BOOKING filtered by event location, ordered by date
+
+\begin{lstlisting}
+SELECT st.Code || ' - ' || st.Name
+FROM BOOKING b
+JOIN SETUPTEAM st ON DEREF(b.Team).Code = st.Code
+WHERE DEREF(b.EventLocation).Code = :location_code
+ORDER BY b.BookDate DESC
+FETCH FIRST 1 ROW ONLY;
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \safeincludegraphics[width=0.95\textwidth]{images/op4explainbefore.png}
+    \caption{Operation 4 - EXPLAIN PLAN before optimization}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[t]{0.49\textwidth}
+        \centering
+        \safeincludegraphics[width=\textwidth]{images/op4outputbefore1.png}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.49\textwidth}
+        \centering
+        \safeincludegraphics[width=\textwidth]{images/op4outputbefore2.png}
+    \end{subfigure}
+    \caption{Operation 4 - Query output before optimization}
+\end{figure}
+
+\subsection{Optimization}
+
+To optimize this operation, the following index is created:
+
+\begin{lstlisting}
+CREATE INDEX idx_booking_eventlocation_date
+ON BOOKING (EventLocation, BookDate DESC);
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \safeincludegraphics[width=0.95\textwidth]{images/op4explainafter.png}
+    \caption{Operation 4 - EXPLAIN PLAN after optimization}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[t]{0.49\textwidth}
+        \centering
+        \safeincludegraphics[width=\textwidth]{images/op4outputafter1.png}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.49\textwidth}
+        \centering
+        \safeincludegraphics[width=\textwidth]{images/op4outputafter2.png}
+    \end{subfigure}
+    \caption{Operation 4 - Query output after optimization}
+\end{figure}
+
+\textbf{Considerations:}
+\begin{itemize}
+    \item Before optimization: the plan uses a full table access on BOOKING with explicit sort.
+    \item After optimization: the plan switches to index access on \texttt{idx\_booking\_location\_date}.
+    \item Observed plan cost decreases from about 7 to 4 in the captured execution plans.
+    \item This choice is justified by the daily frequency of Operation 4.
+\end{itemize}
+
+\section{Operation 5: Rank locations by booking count}
+
+\textbf{Query type:} aggregation on BOOKING grouped by event location
+
+\begin{lstlisting}
+SELECT
+    el.Code AS LocationCode,
+    COUNT(b.Code) AS NumBookings
+FROM EVENTLOCATION el
+LEFT JOIN BOOKING b
+    ON DEREF(b.EventLocation).Code = el.Code
+GROUP BY el.Code
+ORDER BY NumBookings DESC, el.Code;
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \safeincludegraphics[width=0.95\textwidth]{images/op5explainbefore.png}
+    \caption{Operation 5 - EXPLAIN PLAN before optimization}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[t]{0.49\textwidth}
+        \centering
+        \safeincludegraphics[width=\textwidth]{images/op5outputbefore1.png}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.49\textwidth}
+        \centering
+        \safeincludegraphics[width=\textwidth]{images/op5outputbefore2.png}
+    \end{subfigure}
+    \caption{Operation 5 - Query output before optimization}
+\end{figure}
+
+\subsection{Optimization}
+
+No extra index is introduced beyond \texttt{idx\_booking\_eventlocation\_date}. The first key column (\texttt{EventLocation}) is already useful for grouping access paths.
+
+\begin{figure}[H]
+    \centering
+    \safeincludegraphics[width=0.95\textwidth]{images/op5explainafter.png}
+    \caption{Operation 5 - EXPLAIN PLAN after optimization}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[t]{0.49\textwidth}
+        \centering
+        \safeincludegraphics[width=\textwidth]{images/op5outputafter1.png}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.49\textwidth}
+        \centering
+        \safeincludegraphics[width=\textwidth]{images/op5outputafter2.png}
+    \end{subfigure}
+    \caption{Operation 5 - Query output after optimization}
+\end{figure}
+
+\textbf{Considerations:}
+\begin{itemize}
+    \item Operation 5 still requires aggregation and sorting, so a full elimination of sort cost is not expected.
+    \item The same index used for Operation 4 supports the join and grouping path on booking keys.
+    \item Observed plan cost decreases from about 7 to 5 in the captured execution plans.
+    \item Avoiding multiple write-side indexes preserves insert/update performance for frequent operations.
+\end{itemize}
+
+\section{Index Summary}
+
+\begin{center}
+\begin{tabular}{|p{4cm}|p{5cm}|p{3cm}|}
+\hline
+\textbf{Index Name} & \textbf{Columns} & \textbf{Used By Operation} \\
+\hline
+idx\_booking\_eventlocation\_date & BOOKING(EventLocation, BookDate DESC) & Operations 4, 5 \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{Final considerations}
+
+The selected physical design balances read and write costs:
+
+\begin{itemize}
+    \item write-intensive operations 1, 2 and 3 remain lightweight;
+    \item read operation 4 is significantly improved with a dedicated composite index;
+    \item operation 5 benefits from the same index while keeping write overhead low;
+    \item physical choices are coherent with the object-relational \texttt{REF/DEREF} model.
+\end{itemize}
+
+
+

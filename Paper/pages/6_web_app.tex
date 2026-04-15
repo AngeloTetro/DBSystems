@@ -1,0 +1,182 @@
+\chapter{Web Application}
+\section{Technology stack}
+
+The application is built with:
+
+\begin{itemize}
+    \item \textbf{Backend:} Python 3 + Flask
+    \item \textbf{Database Driver:} oracledb
+    \item \textbf{Frontend:} HTML5, CSS3, Jinja2 templates
+    \item \textbf{Database:} Oracle Object-Relational DB
+\end{itemize}
+
+\section{Project structure}
+
+\begin{verbatim}
+webapp/
+|-- app.py
+|-- database.py
+|-- static/
+|   |-- css/
+|   |   `-- style.css
+`-- templates/
+    |-- base.html
+    |-- index.html
+    |-- register_customer.html
+    |-- add_booking.html
+    |-- add_event_location.html
+    |-- view_location_team.html
+    `-- ranked_locations.html
+\end{verbatim}
+
+\section{Local execution}
+
+The Flask application can be started after preparing the Oracle schema with
+\texttt{script.sql} and test data.
+
+\begin{lstlisting}[language=bash]
+cd webapp
+pip install flask oracledb
+set DB_USER=TEST
+set DB_PASSWORD=test123
+set DB_DSN=localhost:1521/XE
+python app.py
+\end{lstlisting}
+
+Then open \texttt{http://127.0.0.1:5000} in the browser.
+
+\section{Database connection layer}
+
+The \texttt{database.py} module centralizes Oracle connectivity:
+
+\begin{lstlisting}[language=Python]
+import os
+import oracledb
+
+def get_connection():
+    user = os.getenv('DB_USER', 'stageup_user')
+    password = os.getenv('DB_PASSWORD', 'stageup_pwd')
+    dsn = os.getenv('DB_DSN', 'localhost:1521/XEPDB1')
+    return oracledb.connect(user=user, password=password, dsn=dsn)
+\end{lstlisting}
+
+\section{Route mapping}
+
+\begin{table}[H]
+    \centering
+    \resizebox{\textwidth}{!}{
+    \begin{tabular}{|c|p{3.0cm}|c|p{3.5cm}|p{3.5cm}|}
+    \hline
+    \textbf{Op.} & \textbf{Endpoint} & \textbf{Method} & \textbf{DB object} & \textbf{Template} \\
+    \hline
+    1 & \texttt{/register\_customer} & GET, POST & \texttt{proc\_register\_customer} & \texttt{register\_customer.html} \\
+    \hline
+    2 & \texttt{/add\_booking} & GET, POST & \texttt{proc\_add\_booking} & \texttt{add\_booking.html} \\
+    \hline
+    3 & \texttt{/add\_event\_location} & GET, POST & \texttt{proc\_add\_event\_location} & \texttt{add\_event\_location.html} \\
+    \hline
+    4 & \texttt{/view\_location\_team} & GET, POST & \texttt{func\_get\_team\_by\_location} & \texttt{view\_location\_team.html} \\
+    \hline
+    5 & \texttt{/ranked\_locations} & GET & \texttt{vw\_ranked\_locations} & \texttt{ranked\_locations.html} \\
+    \hline
+    \end{tabular}
+    }
+    \caption{Route mapping summary}
+\end{table}
+
+\noindent All write routes (Operations 1--3) follow the same flow: read form data, call PL/SQL object, commit, flash message, and redirect.
+
+\section{UI screenshots}
+
+\begin{figure}[H]
+    \centering
+    \safeincludegraphics[width=0.95\textwidth]{images/home.png}
+    \caption{StageUp Web Application - Homepage}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[t]{\textwidth}
+        \centering
+        \safeincludegraphics[width=0.95\textwidth]{images/op1app.png}
+        \caption{Operation 1 - Form entry}
+    \end{subfigure}
+    \vspace{0.5cm}
+    \begin{subfigure}[t]{\textwidth}
+        \centering
+        \safeincludegraphics[width=0.95\textwidth]{images/op1apppostins.png}
+        \caption{Operation 1 - After submission}
+    \end{subfigure}
+    \caption{Operation 1 - Register Customer}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[t]{\textwidth}
+        \centering
+        \safeincludegraphics[width=0.95\textwidth]{images/op2app.png}
+        \caption{Operation 2 - Form entry}
+    \end{subfigure}
+    \vspace{0.5cm}
+    \begin{subfigure}[t]{\textwidth}
+        \centering
+        \safeincludegraphics[width=0.95\textwidth]{images/op2apppostins.png}
+        \caption{Operation 2 - After submission}
+    \end{subfigure}
+    \caption{Operation 2 - Add Booking}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[t]{\textwidth}
+        \centering
+        \safeincludegraphics[width=0.95\textwidth]{images/op3app.png}
+        \caption{Operation 3 - Form entry}
+    \end{subfigure}
+    \vspace{0.5cm}
+    \begin{subfigure}[t]{\textwidth}
+        \centering
+        \safeincludegraphics[width=0.95\textwidth]{images/op3apppostins.png}
+        \caption{Operation 3 - After submission}
+    \end{subfigure}
+    \caption{Operation 3 - Add Event Location}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[t]{\textwidth}
+        \centering
+        \safeincludegraphics[width=0.95\textwidth]{images/op4app.png}
+        \caption{Operation 4 - Form entry}
+    \end{subfigure}
+    \vspace{0.5cm}
+    \begin{subfigure}[t]{\textwidth}
+        \centering
+        \safeincludegraphics[width=0.95\textwidth]{images/op4apppostins.png}
+        \caption{Operation 4 - After search}
+    \end{subfigure}
+    \caption{Operation 4 - View Team by Location}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \safeincludegraphics[width=0.95\textwidth]{images/op5app.png}
+    \caption{Operation 5 - Ranked Locations (read-only view)}
+\end{figure}
+
+\section{Final notes}
+
+\begin{itemize}
+    \item Each exam operation has a dedicated route and template.
+    \item Database logic is encapsulated in stored procedures/functions.
+    \item The routes use \texttt{try/except/finally} blocks to guarantee cursor/connection cleanup.
+    \item Operation 4 returns either the team name or an error message generated by the database layer.
+    \item Credentials are loaded from environment variables in \texttt{database.py}.
+\end{itemize}
+
+
+
+
+
+
+

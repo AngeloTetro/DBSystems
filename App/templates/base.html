@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StageUp Web App</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div>
+        <h1 class="brand-title">StageUp Control Panel</h1>
+        <p class="brand-sub">Operational interface for Exercise 2 workflows</p>
+      </div>
+      <nav class="menu">
+        <a href="{{ url_for('index') }}">Home</a>
+        <a href="{{ url_for('register_customer') }}">Op 1</a>
+        <a href="{{ url_for('add_booking') }}">Op 2</a>
+        <a href="{{ url_for('add_event_location') }}">Op 3</a>
+        <a href="{{ url_for('view_location_team') }}">Op 4</a>
+        <a href="{{ url_for('ranked_locations') }}">Op 5</a>
+      </nav>
+    </div>
+  </header>
+  <div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-stack">
+          {% for category, message in messages %}
+            <p class="flash {{ category }}">{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>
