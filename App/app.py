@@ -30,6 +30,7 @@ def register_customer():
                     request.form.get("customer_type"),
                     request.form.get("first_name") or None,
                     request.form.get("last_name") or None,
+                    request.form.get("vat") or None,
                     request.form.get("company_name") or None,
                 ],
             )
@@ -104,7 +105,6 @@ def add_booking():
                     request.form.get("location_code"),
                     request.form.get("team_code"),
                     request.form.get("booking_channel") or "website",
-                    "HQ1",
                 ],
             )
             conn.commit()
@@ -169,3 +169,6 @@ def ranked_locations():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+
+

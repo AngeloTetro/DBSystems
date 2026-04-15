@@ -1,12 +1,12 @@
--- Performance Validation Script
--- Execute this script after script.sql
--- Objective: capture performance metrics for all 5 operations
-
 SET DEFINE OFF;
 SET SERVEROUTPUT ON;
 SET FEEDBACK ON;
 SET LINESIZE 220;
 SET PAGESIZE 2000;
+
+PROMPT ========================================
+PROMPT STAGEUP INDEX VALIDATION (OR MODEL)
+PROMPT ========================================
 
 BEGIN
   DELETE FROM PLAN_TABLE WHERE STATEMENT_ID LIKE 'STAGEUP_%';
@@ -15,192 +15,200 @@ EXCEPTION
 END;
 /
 
--- ========================================
--- OPERATION 1 - REGISTER CUSTOMER
--- ========================================
-
+PROMPT ========================================
+PROMPT RELATION-CONSISTENT POPULATION
+PROMPT ========================================
 BEGIN
-   EXECUTE IMMEDIATE 'DELETE FROM CUSTOMER WHERE CustomerCode = ''CUST9001''';
+    EXECUTE IMMEDIATE q'[
+        BEGIN
+            PopulateDatabase(
+                p_num_depots                 => 10,
+                p_num_teams_per_depot        => 10,
+                p_num_customers              => 500,
+                p_num_locations_per_customer => 2,
+                p_num_bookings               => 50000
+            );
+        END;
+    ]';
+    COMMIT;
+    DBMS_OUTPUT.PUT_LINE('PopulateDatabase executed successfully.');
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('PopulateDatabase not available or failed: ' || SQLERRM);
+END;
+/
+
+PROMPT ========================================
+PROMPT OPERATION 1 - REGISTER CUSTOMER
+PROMPT ========================================
+BEGIN
+   EXECUTE IMMEDIATE 'DELETE FROM CUSTOMER WHERE TaxCode = ''CUST9001''';
    COMMIT;
 EXCEPTION
    WHEN OTHERS THEN NULL;
 END;
 /
 
--- Step 1: EXPLAIN PLAN
-EXPLAIN PLAN SET STATEMENT_ID = 'STAGEUP_OP1_INS' FOR INSERT INTO CUSTOMER (CustomerCode, Phone, Email, CustomerType, FirstName, LastName, CompanyName) VALUES ('CUST9001', '333777111', 'trace_op1@example.com', 'individual', 'Trace', 'One', NULL);
+EXPLAIN PLAN SET STATEMENT_ID = 'STAGEUP_OP1_INS' FOR
+INSERT INTO CUSTOMER VALUES (
+    CustomerTY('CUST9001', 'individual', 'Trace', 'One', NULL, NULL)
+);
 
 SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY('PLAN_TABLE', 'STAGEUP_OP1_INS', 'ALL'));
 
--- Step 2: RUN + OUTPUT
-INSERT INTO CUSTOMER (
-  CustomerCode, Phone, Email, CustomerType, FirstName, LastName, CompanyName
-) VALUES (
-  'CUST9001', '333777111', 'trace_op1@example.com', 'individual', 'Trace', 'One', NULL
-);
+BEGIN
+    proc_register_customer('CUST9001', '333777111', 'trace_op1@example.com', 'individual', 'Trace', 'One', NULL, NULL);
+END;
+/
 COMMIT;
 
-SELECT CustomerCode, CustomerType, Email
+SELECT TaxCode, CustomerType, NVL(VAT, '-') AS VAT_OR_EMAIL
 FROM CUSTOMER
-WHERE CustomerCode = 'CUST9001';
+WHERE TaxCode = 'CUST9001';
 
--- ========================================
--- OPERATION 2 - ADD BOOKING
--- ========================================
-
+PROMPT ========================================
+PROMPT OPERATION 2 - ADD BOOKING
+PROMPT ========================================
 BEGIN
-   EXECUTE IMMEDIATE 'DELETE FROM BOOKING WHERE BookingCode = ''BOOK9001''';
+   EXECUTE IMMEDIATE 'DELETE FROM BOOKING WHERE Code = ''BOOK9001''';
    COMMIT;
 EXCEPTION
    WHEN OTHERS THEN NULL;
 END;
 /
 
--- Step 1: EXPLAIN PLAN
-EXPLAIN PLAN SET STATEMENT_ID = 'STAGEUP_OP2_INS' FOR INSERT INTO BOOKING (BookingCode, BookingType, BookingChannel, BookingDate, DurationDays, Cost, CustomerCode, LocationCode, TeamCode, OfficeCode) VALUES ('BOOK9001', 'one-time', 'website', TRUNC(SYSDATE) + 30, 2, 1000, 'CUST001', 'LOC001', 'TEAM001', 'HQ1');
+EXPLAIN PLAN SET STATEMENT_ID = 'STAGEUP_OP2_INS' FOR
+INSERT INTO BOOKING VALUES (
+    BookingTY(
+        'BOOK9001',
+        'W',
+        1000,
+        TRUNC(SYSDATE) + 30,
+        2,
+        'N',
+        (SELECT REF(st) FROM SETUPTEAM st WHERE st.Code = 'TEAM001'),
+        (SELECT REF(el) FROM EVENTLOCATION el WHERE el.Code = 'LOC001')
+    )
+);
 
 SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY('PLAN_TABLE', 'STAGEUP_OP2_INS', 'ALL'));
 
--- Step 2: RUN + OUTPUT
-INSERT INTO BOOKING (
-  BookingCode, BookingType, BookingChannel, BookingDate, DurationDays, Cost,
-  CustomerCode, LocationCode, TeamCode, OfficeCode
-) VALUES (
-  'BOOK9001', 'one-time', 'website', TRUNC(SYSDATE) + 30, 2, 1000,
-  'CUST001', 'LOC001', 'TEAM001', 'HQ1'
-);
+BEGIN
+    proc_add_booking('BOOK9001', 'one-time', TRUNC(SYSDATE) + 30, 2, 1000, 'CUST001', 'LOC001', 'TEAM001', 'website');
+END;
+/
 COMMIT;
 
-SELECT BookingCode, BookingType, TeamCode
+SELECT Code, Type, Cost, BookDate
 FROM BOOKING
-WHERE BookingCode = 'BOOK9001';
+WHERE Code = 'BOOK9001';
 
--- ========================================
--- OPERATION 3 - ADD EVENT LOCATION
--- ========================================
-
+PROMPT ========================================
+PROMPT OPERATION 3 - ADD EVENT LOCATION
+PROMPT ========================================
 BEGIN
-   EXECUTE IMMEDIATE 'DELETE FROM EVENTLOCATION WHERE LocationCode = ''LOC9001''';
+   EXECUTE IMMEDIATE 'DELETE FROM EVENTLOCATION WHERE Code = ''LOC9001''';
    COMMIT;
 EXCEPTION
    WHEN OTHERS THEN NULL;
 END;
 /
 
--- Step 1: EXPLAIN PLAN
-EXPLAIN PLAN SET STATEMENT_ID = 'STAGEUP_OP3_INS' FOR INSERT INTO EVENTLOCATION (LocationCode, LocationAddress, SetupTimeEstimate, EquipmentCapacity, BookingCount, CustomerCode) VALUES ('LOC9001', AddressTY('Trace Street', '99', '20100', 'Milano', 'MI'), 60, 100, 0, 'CUST001');
+EXPLAIN PLAN SET STATEMENT_ID = 'STAGEUP_OP3_INS' FOR
+INSERT INTO EVENTLOCATION VALUES (
+    EventLocationTY(
+        'LOC9001',
+        'Trace Street',
+        99,
+        'Milano',
+        'MI',
+        '20100',
+        (SELECT REF(cu) FROM CUSTOMER cu WHERE cu.TaxCode = 'CUST001')
+    )
+);
 
 SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY('PLAN_TABLE', 'STAGEUP_OP3_INS', 'ALL'));
 
--- Step 2: RUN + OUTPUT
-INSERT INTO EVENTLOCATION (
-  LocationCode, LocationAddress, SetupTimeEstimate, EquipmentCapacity, BookingCount, CustomerCode
-) VALUES (
-  'LOC9001', AddressTY('Trace Street', '99', '20100', 'Milano', 'MI'), 60, 100, 0, 'CUST001'
-);
+BEGIN
+    proc_add_event_location('LOC9001', 'CUST001', 'Trace Street', '99', '20100', 'Milano', 'MI', 60, 100);
+END;
+/
 COMMIT;
 
-SELECT LocationCode, CustomerCode, BookingCount
+SELECT Code, City, ZIP
 FROM EVENTLOCATION
-WHERE LocationCode = 'LOC9001';
+WHERE Code = 'LOC9001';
 
--- ========================================
--- OPERATION 4 - BEFORE OPTIMIZATION
--- ========================================
-
+PROMPT ========================================
+PROMPT OPERATION 4 - TEAM BY LOCATION
+PROMPT ========================================
 BEGIN
-   EXECUTE IMMEDIATE 'DROP INDEX idx_booking_location_date';
+   EXECUTE IMMEDIATE 'DROP INDEX idx_booking_bookdate';
 EXCEPTION
    WHEN OTHERS THEN NULL;
 END;
 /
 
--- Step 1: EXPLAIN PLAN (before)
 EXPLAIN PLAN SET STATEMENT_ID = 'STAGEUP_OP4_BEFORE' FOR
-SELECT TeamName
-FROM (
-  SELECT s.TeamName
-  FROM BOOKING b
-  JOIN SETUPTEAM s ON s.TeamCode = b.TeamCode
-  WHERE b.CustomerCode = 'CUST001'
-    AND b.LocationCode = 'LOC001'
-  ORDER BY b.BookingDate DESC
-)
-WHERE ROWNUM = 1;
+SELECT st.Code || ' - ' || st.Name AS TeamInfo
+FROM BOOKING b
+JOIN SETUPTEAM st ON DEREF(b.Team).Code = st.Code
+WHERE DEREF(b.EventLocation).Code = 'LOC001'
+ORDER BY b.BookDate DESC
+FETCH FIRST 1 ROW ONLY;
 
 SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY('PLAN_TABLE', 'STAGEUP_OP4_BEFORE', 'ALL'));
 
--- Step 2: QUERY OUTPUT (before)
-SELECT TeamName
-FROM (
-  SELECT s.TeamName
-  FROM BOOKING b
-  JOIN SETUPTEAM s ON s.TeamCode = b.TeamCode
-  WHERE b.CustomerCode = 'CUST001'
-    AND b.LocationCode = 'LOC001'
-  ORDER BY b.BookingDate DESC
-)
-WHERE ROWNUM = 1;
+SELECT func_get_team_by_location('CUST001', 'LOC001') AS TeamInfo
+FROM DUAL;
 
--- ========================================
--- OPERATION 4 - AFTER OPTIMIZATION
--- ========================================
+CREATE INDEX idx_booking_bookdate ON BOOKING (BookDate DESC);
 
-CREATE INDEX idx_booking_location_date ON BOOKING (CustomerCode, LocationCode, BookingDate DESC);
-
--- Step 1: EXPLAIN PLAN (after)
 EXPLAIN PLAN SET STATEMENT_ID = 'STAGEUP_OP4_AFTER' FOR
-SELECT TeamName
-FROM (
-  SELECT s.TeamName
-  FROM BOOKING b
-  JOIN SETUPTEAM s ON s.TeamCode = b.TeamCode
-  WHERE b.CustomerCode = 'CUST001'
-    AND b.LocationCode = 'LOC001'
-  ORDER BY b.BookingDate DESC
-)
-WHERE ROWNUM = 1;
+SELECT st.Code || ' - ' || st.Name AS TeamInfo
+FROM BOOKING b
+JOIN SETUPTEAM st ON DEREF(b.Team).Code = st.Code
+WHERE DEREF(b.EventLocation).Code = 'LOC001'
+ORDER BY b.BookDate DESC
+FETCH FIRST 1 ROW ONLY;
 
 SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY('PLAN_TABLE', 'STAGEUP_OP4_AFTER', 'ALL'));
 
--- ========================================
--- OPERATION 5 - BEFORE OPTIMIZATION
--- ========================================
-
--- Rimuovo l'indice per testare l'op 5 senza ottimizzazione
+PROMPT ========================================
+PROMPT OPERATION 5 - RANKED LOCATIONS
+PROMPT ========================================
 BEGIN
-   EXECUTE IMMEDIATE 'DROP INDEX idx_booking_location_date';
+   EXECUTE IMMEDIATE 'DROP INDEX idx_booking_bookdate';
 EXCEPTION
    WHEN OTHERS THEN NULL;
 END;
 /
 
--- Step 1: EXPLAIN PLAN (before)
 EXPLAIN PLAN SET STATEMENT_ID = 'STAGEUP_OP5_BEFORE' FOR
-SELECT el.LocationCode, COUNT(b.BookingCode) AS NumBookings
+SELECT el.Code AS LocationCode, COUNT(b.Code) AS NumBookings
 FROM EVENTLOCATION el
 LEFT JOIN BOOKING b
-  ON b.CustomerCode = el.CustomerCode
- AND b.LocationCode = el.LocationCode
-GROUP BY el.LocationCode
-ORDER BY NumBookings DESC, el.LocationCode;
+    ON DEREF(b.EventLocation).Code = el.Code
+GROUP BY el.Code
+ORDER BY NumBookings DESC, el.Code;
 
 SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY('PLAN_TABLE', 'STAGEUP_OP5_BEFORE', 'ALL'));
 
--- ========================================
--- OPERATION 5 - AFTER OPTIMIZATION
--- ========================================
+CREATE INDEX idx_booking_bookdate ON BOOKING (BookDate DESC);
 
-CREATE INDEX idx_booking_location_date ON BOOKING (CustomerCode, LocationCode, BookingDate DESC);
-
--- Step 1: EXPLAIN PLAN (after)
 EXPLAIN PLAN SET STATEMENT_ID = 'STAGEUP_OP5_AFTER' FOR
-SELECT el.LocationCode, COUNT(b.BookingCode) AS NumBookings
+SELECT el.Code AS LocationCode, COUNT(b.Code) AS NumBookings
 FROM EVENTLOCATION el
 LEFT JOIN BOOKING b
-  ON b.CustomerCode = el.CustomerCode
- AND b.LocationCode = el.LocationCode
-GROUP BY el.LocationCode
-ORDER BY NumBookings DESC, el.LocationCode;
+    ON DEREF(b.EventLocation).Code = el.Code
+GROUP BY el.Code
+ORDER BY NumBookings DESC, el.Code;
 
 SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY('PLAN_TABLE', 'STAGEUP_OP5_AFTER', 'ALL'));
+
+SELECT el.Code AS LocationCode, COUNT(b.Code) AS NumBookings
+FROM EVENTLOCATION el
+LEFT JOIN BOOKING b
+    ON DEREF(b.EventLocation).Code = el.Code
+GROUP BY el.Code
+ORDER BY NumBookings DESC, el.Code;

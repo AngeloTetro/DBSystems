@@ -26,226 +26,381 @@ BEGIN EXECUTE IMMEDIATE 'DROP TABLE BOOKING CASCADE CONSTRAINTS'; EXCEPTION WHEN
 /
 BEGIN EXECUTE IMMEDIATE 'DROP TABLE EVENTLOCATION CASCADE CONSTRAINTS'; EXCEPTION WHEN OTHERS THEN NULL; END;
 /
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE EMPLOYEE CASCADE CONSTRAINTS'; EXCEPTION WHEN OTHERS THEN NULL; END;
+BEGIN EXECUTE IMMEDIATE 'DROP TABLE CUSTOMER CASCADE CONSTRAINTS'; EXCEPTION WHEN OTHERS THEN NULL; END;
 /
 BEGIN EXECUTE IMMEDIATE 'DROP TABLE SETUPTEAM CASCADE CONSTRAINTS'; EXCEPTION WHEN OTHERS THEN NULL; END;
 /
 BEGIN EXECUTE IMMEDIATE 'DROP TABLE DEPOT CASCADE CONSTRAINTS'; EXCEPTION WHEN OTHERS THEN NULL; END;
-/
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE CENTRALOFFICE CASCADE CONSTRAINTS'; EXCEPTION WHEN OTHERS THEN NULL; END;
-/
-BEGIN EXECUTE IMMEDIATE 'DROP TABLE CUSTOMER CASCADE CONSTRAINTS'; EXCEPTION WHEN OTHERS THEN NULL; END;
 /
 
 BEGIN EXECUTE IMMEDIATE 'DROP TYPE BookingTY FORCE'; EXCEPTION WHEN OTHERS THEN NULL; END;
 /
 BEGIN EXECUTE IMMEDIATE 'DROP TYPE EventLocationTY FORCE'; EXCEPTION WHEN OTHERS THEN NULL; END;
 /
-BEGIN EXECUTE IMMEDIATE 'DROP TYPE EmployeeTY FORCE'; EXCEPTION WHEN OTHERS THEN NULL; END;
+BEGIN EXECUTE IMMEDIATE 'DROP TYPE CustomerTY FORCE'; EXCEPTION WHEN OTHERS THEN NULL; END;
 /
 BEGIN EXECUTE IMMEDIATE 'DROP TYPE SetupTeamTY FORCE'; EXCEPTION WHEN OTHERS THEN NULL; END;
 /
+BEGIN EXECUTE IMMEDIATE 'DROP TYPE MemberListTY FORCE'; EXCEPTION WHEN OTHERS THEN NULL; END;
+/
+BEGIN EXECUTE IMMEDIATE 'DROP TYPE MemberTY FORCE'; EXCEPTION WHEN OTHERS THEN NULL; END;
+/
 BEGIN EXECUTE IMMEDIATE 'DROP TYPE DepotTY FORCE'; EXCEPTION WHEN OTHERS THEN NULL; END;
 /
-BEGIN EXECUTE IMMEDIATE 'DROP TYPE CentralOfficeTY FORCE'; EXCEPTION WHEN OTHERS THEN NULL; END;
-/
-BEGIN EXECUTE IMMEDIATE 'DROP TYPE CustomerTY FORCE'; EXCEPTION WHEN OTHERS THEN NULL; END;
-/
-BEGIN EXECUTE IMMEDIATE 'DROP TYPE AddressTY FORCE'; EXCEPTION WHEN OTHERS THEN NULL; END;
+BEGIN EXECUTE IMMEDIATE 'DROP TYPE MunicipalityListTY FORCE'; EXCEPTION WHEN OTHERS THEN NULL; END;
 /
 
 -- ========================================
--- 1) SCHEMA CREATION
+-- 1) TYPES
 -- ========================================
 
-CREATE OR REPLACE TYPE AddressTY AS OBJECT (
-    Street       VARCHAR2(100),
-    HouseNumber  VARCHAR2(10),
-    PostalCode   VARCHAR2(10),
-    City         VARCHAR2(50),
-    Province     VARCHAR2(50)
+CREATE OR REPLACE TYPE MunicipalityListTY AS TABLE OF VARCHAR2(80);
+/
+
+CREATE OR REPLACE TYPE DepotTY AS OBJECT (
+    ID             VARCHAR2(20),
+    Name           VARCHAR2(100),
+    Address        VARCHAR2(100),
+    City           VARCHAR2(50),
+    Province       VARCHAR2(50),
+    N_Emp          NUMBER,
+    CoveredRegion  VARCHAR2(80),
+    Municipalities MunicipalityListTY
+);
+/
+
+CREATE OR REPLACE TYPE MemberTY AS OBJECT (
+    SSN      VARCHAR2(16),
+    Name     VARCHAR2(50),
+    Surname  VARCHAR2(50)
+);
+/
+
+CREATE OR REPLACE TYPE MemberListTY AS TABLE OF MemberTY;
+/
+
+CREATE OR REPLACE TYPE SetupTeamTY AS OBJECT (
+    Code     VARCHAR2(20),
+    Name     VARCHAR2(100),
+    Depot    REF DepotTY,
+    Members  MemberListTY
 );
 /
 
 CREATE OR REPLACE TYPE CustomerTY AS OBJECT (
-    CustomerCode VARCHAR2(20),
-    Phone        VARCHAR2(20),
-    Email        VARCHAR2(100),
-    CustomerType VARCHAR2(20),
-    FirstName    VARCHAR2(50),
-    LastName     VARCHAR2(50),
-    CompanyName  VARCHAR2(100)
-);
-/
-
-CREATE OR REPLACE TYPE DepotTY AS OBJECT (
-    DepotCode      VARCHAR2(20),
-    DepotName      VARCHAR2(100),
-    DepotAddress   AddressTY,
-    RegionName     VARCHAR2(50),
-    EmployeeCount  NUMBER
-);
-/
-
-CREATE OR REPLACE TYPE CentralOfficeTY AS OBJECT (
-    OfficeCode       VARCHAR2(20),
-    OfficeName       VARCHAR2(100),
-    OfficeAddress    AddressTY,
-    EmployeeCount    NUMBER
-);
-/
-
-CREATE OR REPLACE TYPE SetupTeamTY AS OBJECT (
-    TeamCode           VARCHAR2(20),
-    TeamName           VARCHAR2(100),
-    MaxMembers         NUMBER,
-    InstallationCount  NUMBER,
-    DepotCode          VARCHAR2(20)
-);
-/
-
-CREATE OR REPLACE TYPE EmployeeTY AS OBJECT (
-    FiscalCode   VARCHAR2(16),
-    FirstName    VARCHAR2(50),
-    LastName     VARCHAR2(50),
-    DateOfBirth  DATE,
-    HireDate     DATE,
-    TeamCode     VARCHAR2(20)
+    TaxCode       VARCHAR2(20),
+    CustomerType  VARCHAR2(20),
+    FirstName     VARCHAR2(50),
+    LastName      VARCHAR2(50),
+    VAT           VARCHAR2(20),
+    CompanyName   VARCHAR2(100)
 );
 /
 
 CREATE OR REPLACE TYPE EventLocationTY AS OBJECT (
-    LocationCode       VARCHAR2(20),
-    LocationAddress    AddressTY,
-    SetupTimeEstimate  NUMBER,
-    EquipmentCapacity  NUMBER,
-    BookingCount       NUMBER,
-    CustomerCode       VARCHAR2(20)
+    Code      VARCHAR2(20),
+    Address   VARCHAR2(100),
+    NumberH   NUMBER,
+    City      VARCHAR2(50),
+    Prov      VARCHAR2(50),
+    ZIP       VARCHAR2(10),
+    Customer  REF CustomerTY
 );
 /
 
 CREATE OR REPLACE TYPE BookingTY AS OBJECT (
-    BookingCode     VARCHAR2(20),
-    BookingType     VARCHAR2(20),
-    BookingChannel  VARCHAR2(20),
-    BookingDate     DATE,
-    DurationDays    NUMBER,
-    Cost            NUMBER,
-    CustomerCode    VARCHAR2(20),
-    LocationCode    VARCHAR2(20),
-    TeamCode        VARCHAR2(20),
-    OfficeCode      VARCHAR2(20)
+    Code          VARCHAR2(20),
+    Type          CHAR(1),
+    Cost          NUMBER(10,2),
+    BookDate      DATE,
+    IntervalM     NUMBER,
+    IsSpecial     CHAR(1),
+    Team          REF SetupTeamTY,
+    EventLocation REF EventLocationTY
 );
 /
 
+-- ========================================
+-- 2) TABLES
+-- ========================================
+
+CREATE TABLE DEPOT OF DepotTY (
+    ID PRIMARY KEY,
+    Name NOT NULL,
+    Address NOT NULL,
+    City NOT NULL,
+    Province NOT NULL,
+    N_Emp CHECK (N_Emp >= 0)
+)
+NESTED TABLE Municipalities STORE AS DepotMunicipalitiesNT;
+
+CREATE TABLE SETUPTEAM OF SetupTeamTY (
+    Code PRIMARY KEY,
+    Name NOT NULL,
+    Depot NOT NULL REFERENCES DEPOT
+)
+NESTED TABLE Members STORE AS SetupTeamMembersNT;
+
 CREATE TABLE CUSTOMER OF CustomerTY (
-    PRIMARY KEY (CustomerCode),
-    UNIQUE (Email),
-    CONSTRAINT chk_customer_type CHECK (CustomerType IN ('individual', 'company')),
-    CONSTRAINT chk_customer_data CHECK (
-        (CustomerType = 'individual' AND FirstName IS NOT NULL AND LastName IS NOT NULL)
+    TaxCode PRIMARY KEY,
+    CustomerType NOT NULL CHECK (CustomerType IN ('individual', 'company')),
+    VAT UNIQUE,
+    CHECK (
+        (CustomerType = 'individual'
+            AND FirstName IS NOT NULL
+            AND LastName IS NOT NULL
+            AND VAT IS NULL
+            AND CompanyName IS NULL)
         OR
-        (CustomerType = 'company' AND CompanyName IS NOT NULL)
+        (CustomerType = 'company'
+            AND VAT IS NOT NULL
+            AND CompanyName IS NOT NULL
+            AND FirstName IS NULL
+            AND LastName IS NULL)
     )
 );
 
-CREATE TABLE DEPOT OF DepotTY (
-    PRIMARY KEY (DepotCode),
-    CONSTRAINT chk_depot_emp CHECK (EmployeeCount >= 0)
-);
-
-CREATE TABLE CENTRALOFFICE OF CentralOfficeTY (
-    PRIMARY KEY (OfficeCode),
-    CONSTRAINT chk_office_emp CHECK (EmployeeCount >= 0)
-);
-
-CREATE TABLE SETUPTEAM OF SetupTeamTY (
-    PRIMARY KEY (TeamCode),
-    CONSTRAINT chk_team_members CHECK (MaxMembers BETWEEN 1 AND 10),
-    CONSTRAINT chk_team_install CHECK (InstallationCount >= 0),
-    DepotCode NOT NULL,
-    FOREIGN KEY (DepotCode) REFERENCES DEPOT (DepotCode)
-);
-
-CREATE TABLE EMPLOYEE OF EmployeeTY (
-    PRIMARY KEY (FiscalCode),
-    TeamCode NOT NULL,
-    FOREIGN KEY (TeamCode) REFERENCES SETUPTEAM (TeamCode)
-);
-
 CREATE TABLE EVENTLOCATION OF EventLocationTY (
-    PRIMARY KEY (CustomerCode, LocationCode),
-    CONSTRAINT chk_location_setup CHECK (SetupTimeEstimate > 0),
-    CONSTRAINT chk_location_equip CHECK (EquipmentCapacity > 0),
-    CONSTRAINT chk_location_booking CHECK (BookingCount >= 0),
-    CustomerCode NOT NULL,
-    FOREIGN KEY (CustomerCode) REFERENCES CUSTOMER (CustomerCode)
+    Code PRIMARY KEY,
+    Address NOT NULL,
+    NumberH CHECK (NumberH > 0),
+    City NOT NULL,
+    Prov NOT NULL,
+    ZIP NOT NULL,
+    Customer NOT NULL REFERENCES CUSTOMER ON DELETE CASCADE
 );
 
 CREATE TABLE BOOKING OF BookingTY (
-    PRIMARY KEY (BookingCode),
-    CONSTRAINT chk_booking_type CHECK (BookingType IN ('one-time', 'recurring', 'seasonal', 'promotional')),
-    CONSTRAINT chk_booking_channel CHECK (BookingChannel IN ('phone', 'postal', 'email', 'website')),
-    CONSTRAINT chk_booking_duration CHECK (DurationDays > 0),
-    CONSTRAINT chk_booking_cost CHECK (Cost >= 0),
-    CustomerCode NOT NULL,
-    LocationCode NOT NULL,
-    TeamCode NOT NULL,
-    OfficeCode NOT NULL,
-    FOREIGN KEY (CustomerCode) REFERENCES CUSTOMER (CustomerCode),
-    FOREIGN KEY (CustomerCode, LocationCode) REFERENCES EVENTLOCATION (CustomerCode, LocationCode),
-    FOREIGN KEY (TeamCode) REFERENCES SETUPTEAM (TeamCode),
-    FOREIGN KEY (OfficeCode) REFERENCES CENTRALOFFICE (OfficeCode)
+    Code PRIMARY KEY,
+    Type NOT NULL CHECK (Type IN ('P', 'M', 'E', 'W')),
+    Cost NOT NULL CHECK (Cost >= 0),
+    BookDate NOT NULL,
+    IntervalM NOT NULL CHECK (IntervalM >= 0),
+    IsSpecial NOT NULL CHECK (IsSpecial IN ('Y', 'N')),
+    Team NOT NULL REFERENCES SETUPTEAM,
+    EventLocation NOT NULL REFERENCES EVENTLOCATION
 );
 
-CREATE INDEX idx_booking_location_date ON BOOKING (CustomerCode, LocationCode, BookingDate DESC);
-CREATE INDEX idx_eventlocation_bookingcount ON EVENTLOCATION (BookingCount DESC);
+CREATE INDEX idx_booking_bookdate ON BOOKING (BookDate DESC);
 
 -- ========================================
--- 2) BUSINESS LOGIC OBJECTS
+-- 3) TRIGGERS
 -- ========================================
 
-CREATE OR REPLACE TRIGGER trg_inc_team_installations
-AFTER INSERT ON BOOKING
+CREATE OR REPLACE TRIGGER trg_check_customer_type
+BEFORE INSERT OR UPDATE ON CUSTOMER
 FOR EACH ROW
 BEGIN
-    UPDATE SETUPTEAM
-    SET InstallationCount = InstallationCount + 1
-    WHERE TeamCode = :NEW.TeamCode;
+    IF :NEW.CustomerType = 'individual' THEN
+        IF :NEW.FirstName IS NULL OR :NEW.LastName IS NULL THEN
+            RAISE_APPLICATION_ERROR(-20001, 'Individual customer requires first and last name');
+        END IF;
+        IF :NEW.VAT IS NOT NULL OR :NEW.CompanyName IS NOT NULL THEN
+            RAISE_APPLICATION_ERROR(-20002, 'Individual customer cannot have company data');
+        END IF;
+    ELSIF :NEW.CustomerType = 'company' THEN
+        IF :NEW.VAT IS NULL OR :NEW.CompanyName IS NULL THEN
+            RAISE_APPLICATION_ERROR(-20003, 'Company customer requires VAT and company name');
+        END IF;
+        IF :NEW.FirstName IS NOT NULL OR :NEW.LastName IS NOT NULL THEN
+            RAISE_APPLICATION_ERROR(-20004, 'Company customer cannot have personal name data');
+        END IF;
+    ELSE
+        RAISE_APPLICATION_ERROR(-20005, 'Invalid customer type');
+    END IF;
 END;
 /
 
-CREATE OR REPLACE TRIGGER trg_inc_location_bookings
-AFTER INSERT ON BOOKING
+CREATE OR REPLACE TRIGGER trg_check_depot_municipalities
+BEFORE INSERT OR UPDATE ON DEPOT
 FOR EACH ROW
 BEGIN
-    UPDATE EVENTLOCATION
-    SET BookingCount = BookingCount + 1
-    WHERE CustomerCode = :NEW.CustomerCode
-      AND LocationCode = :NEW.LocationCode;
+    IF :NEW.Municipalities IS NULL OR :NEW.Municipalities.COUNT = 0 THEN
+        RAISE_APPLICATION_ERROR(-20006, 'Depot must include at least one municipality');
+    END IF;
 END;
 /
 
-CREATE OR REPLACE PROCEDURE proc_register_customer (
+CREATE OR REPLACE TRIGGER trg_check_team_members
+BEFORE INSERT OR UPDATE ON SETUPTEAM
+FOR EACH ROW
+DECLARE
+    v_dup NUMBER;
+BEGIN
+    IF :NEW.Members IS NOT NULL AND :NEW.Members.COUNT > 10 THEN
+        RAISE_APPLICATION_ERROR(-20007, 'A setup team cannot contain more than 10 members');
+    END IF;
+
+    IF :NEW.Members IS NOT NULL THEN
+        SELECT COUNT(*)
+        INTO v_dup
+        FROM (
+            SELECT m.SSN
+            FROM TABLE(:NEW.Members) m
+            GROUP BY m.SSN
+            HAVING COUNT(*) > 1
+        );
+
+        IF v_dup > 0 THEN
+            RAISE_APPLICATION_ERROR(-20008, 'Duplicate member SSN in the same setup team');
+        END IF;
+    END IF;
+END;
+/
+
+CREATE OR REPLACE TRIGGER trg_check_booking_overlap
+BEFORE INSERT OR UPDATE ON BOOKING
+FOR EACH ROW
+DECLARE
+    v_overlap NUMBER;
+BEGIN
+    SELECT COUNT(*)
+    INTO v_overlap
+    FROM BOOKING b
+    WHERE b.Team = :NEW.Team
+      AND b.Code <> NVL(:OLD.Code, '###')
+      AND :NEW.BookDate <= b.BookDate + b.IntervalM
+      AND b.BookDate <= :NEW.BookDate + :NEW.IntervalM;
+
+    IF v_overlap > 0 THEN
+        RAISE_APPLICATION_ERROR(-20009, 'Team already assigned in an overlapping time window');
+    END IF;
+END;
+/
+
+CREATE OR REPLACE TRIGGER trg_booking_eventlocation_customer_match
+BEFORE INSERT OR UPDATE ON BOOKING
+FOR EACH ROW
+DECLARE
+    v_location EventLocationTY;
+    v_customer CustomerTY;
+BEGIN
+    IF :NEW.EventLocation IS NULL THEN
+        RAISE_APPLICATION_ERROR(-20010, 'Booking must reference an event location');
+    END IF;
+
+    SELECT DEREF(:NEW.EventLocation)
+    INTO v_location
+    FROM DUAL;
+
+    IF v_location IS NULL OR v_location.Customer IS NULL THEN
+        RAISE_APPLICATION_ERROR(-20011, 'Event location must be linked to a customer');
+    END IF;
+
+    SELECT DEREF(v_location.Customer)
+    INTO v_customer
+    FROM DUAL;
+
+    IF v_customer IS NULL THEN
+        RAISE_APPLICATION_ERROR(-20012, 'Referenced customer does not exist');
+    END IF;
+END;
+/
+
+CREATE OR REPLACE TRIGGER trg_booking_date_not_past
+BEFORE INSERT OR UPDATE ON BOOKING
+FOR EACH ROW
+BEGIN
+    IF :NEW.BookDate < TRUNC(SYSDATE) THEN
+        RAISE_APPLICATION_ERROR(-20013, 'Booking date cannot be in the past');
+    END IF;
+END;
+/
+
+CREATE OR REPLACE TRIGGER trg_lock_past_booking_reassignment
+BEFORE UPDATE OF Team, EventLocation ON BOOKING
+FOR EACH ROW
+BEGIN
+    IF :OLD.BookDate < TRUNC(SYSDATE)
+       AND (:OLD.Team <> :NEW.Team OR :OLD.EventLocation <> :NEW.EventLocation) THEN
+        RAISE_APPLICATION_ERROR(-20014, 'Team or location cannot be changed for past bookings');
+    END IF;
+END;
+/
+
+-- ========================================
+-- 4) OPERATIONS
+-- ========================================
+
+CREATE OR REPLACE PROCEDURE proc_register_customer(
     p_customer_code IN VARCHAR2,
     p_phone         IN VARCHAR2,
     p_email         IN VARCHAR2,
     p_customer_type IN VARCHAR2,
     p_first_name    IN VARCHAR2,
     p_last_name     IN VARCHAR2,
+    p_vat           IN VARCHAR2,
     p_company_name  IN VARCHAR2
-)
-AS
+) AS
 BEGIN
-    INSERT INTO CUSTOMER (
-        CustomerCode, Phone, Email, CustomerType, FirstName, LastName, CompanyName
-    ) VALUES (
-        p_customer_code, p_phone, p_email, p_customer_type, p_first_name, p_last_name, p_company_name
+    IF p_customer_type = 'company' THEN
+        INSERT INTO CUSTOMER VALUES (
+            CustomerTY(
+                p_customer_code,
+                p_customer_type,
+                NULL,
+                NULL,
+                p_vat,
+                p_company_name
+            )
+        );
+    ELSE
+        INSERT INTO CUSTOMER VALUES (
+            CustomerTY(
+                p_customer_code,
+                p_customer_type,
+                p_first_name,
+                p_last_name,
+                NULL,
+                NULL
+            )
+        );
+    END IF;
+END;
+/
+
+CREATE OR REPLACE PROCEDURE proc_add_booking(
+    p_booking_code    IN VARCHAR2,
+    p_booking_type    IN VARCHAR2,
+    p_booking_date    IN DATE,
+    p_duration_days   IN NUMBER,
+    p_cost            IN NUMBER,
+    p_customer_code   IN VARCHAR2,
+    p_location_code   IN VARCHAR2,
+    p_team_code       IN VARCHAR2,
+    p_booking_channel IN VARCHAR2 DEFAULT 'website'
+) AS
+    v_type CHAR(1);
+BEGIN
+    v_type := CASE LOWER(NVL(p_booking_type, 'one-time'))
+                WHEN 'one-time' THEN 'W'
+                WHEN 'recurring' THEN 'M'
+                                WHEN 'promotional' THEN 'P'
+                ELSE 'W'
+              END;
+
+    INSERT INTO BOOKING VALUES (
+        BookingTY(
+            p_booking_code,
+            v_type,
+            p_cost,
+            p_booking_date,
+            p_duration_days,
+            'N',
+            (SELECT REF(st) FROM SETUPTEAM st WHERE st.Code = p_team_code),
+            (
+                SELECT REF(el)
+                FROM EVENTLOCATION el
+                JOIN CUSTOMER c ON REF(c) = el.Customer
+                WHERE el.Code = p_location_code
+                  AND c.TaxCode = p_customer_code
+            )
+        )
     );
 END;
 /
 
-CREATE OR REPLACE PROCEDURE proc_add_event_location (
+CREATE OR REPLACE PROCEDURE proc_add_event_location(
     p_location_code      IN VARCHAR2,
     p_customer_code      IN VARCHAR2,
     p_street             IN VARCHAR2,
@@ -255,108 +410,295 @@ CREATE OR REPLACE PROCEDURE proc_add_event_location (
     p_province           IN VARCHAR2,
     p_setup_time_est     IN NUMBER,
     p_equipment_capacity IN NUMBER
-)
-AS
+) AS
+    v_number NUMBER;
 BEGIN
-    INSERT INTO EVENTLOCATION (
-        LocationCode, LocationAddress, SetupTimeEstimate, EquipmentCapacity, BookingCount, CustomerCode
-    ) VALUES (
-        p_location_code,
-        AddressTY(p_street, p_house_number, p_postal_code, p_city, p_province),
-        p_setup_time_est,
-        p_equipment_capacity,
-        0,
-        p_customer_code
+    v_number := NVL(TO_NUMBER(REGEXP_SUBSTR(p_house_number, '[0-9]+')), 1);
+
+    INSERT INTO EVENTLOCATION VALUES (
+        EventLocationTY(
+            p_location_code,
+            p_street,
+            v_number,
+            p_city,
+            p_province,
+            p_postal_code,
+            (SELECT REF(cu) FROM CUSTOMER cu WHERE cu.TaxCode = p_customer_code)
+        )
     );
 END;
 /
 
-CREATE OR REPLACE PROCEDURE proc_add_booking (
-    p_booking_code    IN VARCHAR2,
-    p_booking_type    IN VARCHAR2,
-    p_booking_date    IN DATE,
-    p_duration_days   IN NUMBER,
-    p_cost            IN NUMBER,
-    p_customer_code   IN VARCHAR2,
-    p_location_code   IN VARCHAR2,
-    p_team_code       IN VARCHAR2,
-    p_booking_channel IN VARCHAR2 DEFAULT 'website',
-    p_office_code     IN VARCHAR2 DEFAULT 'HQ1'
-)
-AS
-BEGIN
-    INSERT INTO BOOKING (
-        BookingCode, BookingType, BookingChannel, BookingDate, DurationDays, Cost,
-        CustomerCode, LocationCode, TeamCode, OfficeCode
-    ) VALUES (
-        p_booking_code,
-        p_booking_type,
-        p_booking_channel,
-        p_booking_date,
-        p_duration_days,
-        p_cost,
-        p_customer_code,
-        p_location_code,
-        p_team_code,
-        p_office_code
-    );
-END;
-/
-
-CREATE OR REPLACE FUNCTION func_get_team_by_location (
+CREATE OR REPLACE FUNCTION func_get_team_by_location(
     p_customer_code IN VARCHAR2,
     p_location_code IN VARCHAR2
-) RETURN VARCHAR2
-AS
-    v_team_name VARCHAR2(100);
+) RETURN VARCHAR2 AS
+    v_team VARCHAR2(200);
 BEGIN
-    SELECT s.TeamName
-    INTO v_team_name
+    SELECT st.Code || ' - ' || st.Name
+    INTO v_team
     FROM BOOKING b
-    JOIN SETUPTEAM s ON s.TeamCode = b.TeamCode
-    WHERE b.CustomerCode = p_customer_code
-      AND b.LocationCode = p_location_code
-    ORDER BY b.BookingDate DESC
+    JOIN SETUPTEAM st ON DEREF(b.Team).Code = st.Code
+    WHERE DEREF(b.EventLocation).Code = p_location_code
+    ORDER BY b.BookDate DESC
     FETCH FIRST 1 ROW ONLY;
 
-    RETURN v_team_name;
+    RETURN v_team;
 EXCEPTION
     WHEN NO_DATA_FOUND THEN
-        RETURN 'No team found for this location';
+        RETURN 'No team found for this event location';
 END;
 /
 
 CREATE OR REPLACE VIEW vw_ranked_locations AS
-SELECT LocationCode, BookingCount
-FROM EVENTLOCATION
-ORDER BY BookingCount DESC;
+SELECT
+    el.Code AS LocationCode,
+    COUNT(b.Code) AS BookingCount
+FROM EVENTLOCATION el
+LEFT JOIN BOOKING b
+    ON DEREF(b.EventLocation).Code = el.Code
+GROUP BY el.Code
+ORDER BY BookingCount DESC, el.Code;
 /
 
 -- ========================================
--- 3) DATA POPULATION
+-- 5) POPULATION PROCEDURES (RELATION MODEL)
 -- ========================================
 
-INSERT INTO CENTRALOFFICE VALUES (
-    CentralOfficeTY('HQ1', 'StageUp Central Office', AddressTY('Corso Italia', '1', '00100', 'Roma', 'RM'), 25)
+CREATE OR REPLACE PROCEDURE populateDepot(p_num_depots IN NUMBER) AS
+    v_emp_count NUMBER;
+BEGIN
+    FOR d IN 1 .. p_num_depots LOOP
+        v_emp_count := TRUNC(DBMS_RANDOM.VALUE(8, 60));
+
+        INSERT INTO DEPOT VALUES (
+            DepotTY(
+                'D' || TO_CHAR(d, 'FM000'),
+                'Depot ' || DBMS_RANDOM.STRING('U', 6),
+                'Street ' || DBMS_RANDOM.STRING('U', 8),
+                'City ' || DBMS_RANDOM.STRING('U', 6),
+                'PR' || TO_CHAR(MOD(d, 20), 'FM00'),
+                v_emp_count,
+                'Region ' || DBMS_RANDOM.STRING('U', 5),
+                MunicipalityListTY(
+                    'Municipality ' || DBMS_RANDOM.STRING('U', 6),
+                    'Municipality ' || DBMS_RANDOM.STRING('U', 6),
+                    'Municipality ' || DBMS_RANDOM.STRING('U', 6)
+                )
+            )
+        );
+    END LOOP;
+END;
+/
+
+CREATE OR REPLACE PROCEDURE populateSetupTeam(p_num_teams_per_depot IN NUMBER) AS
+    v_team_code    VARCHAR2(20);
+    v_members      MemberListTY;
+    v_member_count NUMBER;
+BEGIN
+    FOR d IN (SELECT ID FROM DEPOT ORDER BY ID) LOOP
+        FOR t IN 1 .. p_num_teams_per_depot LOOP
+            v_team_code := 'T' || SUBSTR(d.ID, 2) || '_' || TO_CHAR(t, 'FM00');
+            v_members := MemberListTY();
+            v_member_count := TRUNC(DBMS_RANDOM.VALUE(0, 11));
+
+            FOR m IN 1 .. v_member_count LOOP
+                v_members.EXTEND;
+                v_members(v_members.COUNT) := MemberTY(
+                    'SSN' || TO_CHAR(TO_NUMBER(SUBSTR(d.ID, 2)) * 10000 + t * 100 + m, 'FM0000000'),
+                    'Name' || DBMS_RANDOM.STRING('U', 7),
+                    'Surname' || DBMS_RANDOM.STRING('U', 7)
+                );
+            END LOOP;
+
+            INSERT INTO SETUPTEAM VALUES (
+                SetupTeamTY(
+                    v_team_code,
+                    'Team ' || DBMS_RANDOM.STRING('U', 6),
+                    (SELECT REF(dp) FROM DEPOT dp WHERE dp.ID = d.ID),
+                    v_members
+                )
+            );
+        END LOOP;
+    END LOOP;
+END;
+/
+
+CREATE OR REPLACE PROCEDURE populateCustomer(p_num_customers IN NUMBER) AS
+BEGIN
+    FOR c IN 1 .. p_num_customers LOOP
+        IF DBMS_RANDOM.VALUE(0, 1) < 0.6 THEN
+            INSERT INTO CUSTOMER VALUES (
+                CustomerTY(
+                    'C' || TO_CHAR(c, 'FM0000'),
+                    'individual',
+                    'Name' || DBMS_RANDOM.STRING('U', 8),
+                    'Surname' || DBMS_RANDOM.STRING('U', 8),
+                    NULL,
+                    NULL
+                )
+            );
+        ELSE
+            INSERT INTO CUSTOMER VALUES (
+                CustomerTY(
+                    'C' || TO_CHAR(c, 'FM0000'),
+                    'company',
+                    NULL,
+                    NULL,
+                    'VAT' || TO_CHAR(c, 'FM000000000'),
+                    'Company ' || DBMS_RANDOM.STRING('U', 8)
+                )
+            );
+        END IF;
+    END LOOP;
+END;
+/
+
+CREATE OR REPLACE PROCEDURE populateEventLocation(p_num_locations_per_customer IN NUMBER) AS
+    v_location_code VARCHAR2(20);
+BEGIN
+    FOR c IN (SELECT TaxCode FROM CUSTOMER ORDER BY TaxCode) LOOP
+        FOR l IN 1 .. p_num_locations_per_customer LOOP
+            v_location_code := 'L' || SUBSTR(c.TaxCode, 2) || '_' || TO_CHAR(l, 'FM00');
+
+            INSERT INTO EVENTLOCATION VALUES (
+                EventLocationTY(
+                    v_location_code,
+                    'Address ' || DBMS_RANDOM.STRING('U', 10),
+                    TRUNC(DBMS_RANDOM.VALUE(1, 300)),
+                    'City ' || DBMS_RANDOM.STRING('U', 6),
+                    'PR' || TO_CHAR(MOD(TO_NUMBER(SUBSTR(c.TaxCode, 2)), 20), 'FM00'),
+                    'ZIP' || TO_CHAR(TRUNC(DBMS_RANDOM.VALUE(10000, 99999))),
+                    (SELECT REF(cu) FROM CUSTOMER cu WHERE cu.TaxCode = c.TaxCode)
+                )
+            );
+        END LOOP;
+    END LOOP;
+END;
+/
+
+CREATE OR REPLACE PROCEDURE populateBooking(p_num_bookings IN NUMBER) AS
+    TYPE refTeamTab IS TABLE OF REF SetupTeamTY INDEX BY PLS_INTEGER;
+    TYPE refLocTab  IS TABLE OF REF EventLocationTY INDEX BY PLS_INTEGER;
+    TYPE numTab     IS TABLE OF NUMBER INDEX BY PLS_INTEGER;
+    teams      refTeamTab;
+    locations  refLocTab;
+    v_last_end numTab;
+    v_t_idx    PLS_INTEGER;
+    v_l_idx    PLS_INTEGER;
+    v_type     CHAR(1);
+    v_interval NUMBER;
+    v_start    NUMBER;
+    v_rand     NUMBER;
+BEGIN
+    SELECT REF(t) BULK COLLECT INTO teams FROM SETUPTEAM t;
+    SELECT REF(l) BULK COLLECT INTO locations FROM EVENTLOCATION l;
+
+    FOR i IN 1 .. teams.COUNT LOOP
+        v_last_end(i) := 0;
+    END LOOP;
+
+    FOR b IN 1 .. p_num_bookings LOOP
+        v_t_idx := TRUNC(DBMS_RANDOM.VALUE(1, teams.COUNT + 1));
+        v_l_idx := TRUNC(DBMS_RANDOM.VALUE(1, locations.COUNT + 1));
+
+        v_rand := DBMS_RANDOM.VALUE(0, 1);
+        IF v_rand < 0.25 THEN
+            v_type := 'P';
+        ELSIF v_rand < 0.50 THEN
+            v_type := 'M';
+        ELSIF v_rand < 0.75 THEN
+            v_type := 'E';
+        ELSE
+            v_type := 'W';
+        END IF;
+
+        v_interval := TRUNC(DBMS_RANDOM.VALUE(0, 4));
+        v_start := v_last_end(v_t_idx) + 1 + TRUNC(DBMS_RANDOM.VALUE(0, 3));
+        v_last_end(v_t_idx) := v_start + v_interval;
+
+        INSERT INTO BOOKING VALUES (
+            BookingTY(
+                'B' || TO_CHAR(b, 'FM000000'),
+                v_type,
+                ROUND(DBMS_RANDOM.VALUE(80, 1200), 2),
+                TRUNC(SYSDATE) + v_start,
+                v_interval,
+                CASE WHEN DBMS_RANDOM.VALUE(0, 1) < 0.3 THEN 'Y' ELSE 'N' END,
+                teams(v_t_idx),
+                locations(v_l_idx)
+            )
+        );
+    END LOOP;
+END;
+/
+
+CREATE OR REPLACE PROCEDURE PopulateDatabase(
+    p_num_depots                  IN NUMBER,
+    p_num_teams_per_depot         IN NUMBER,
+    p_num_customers               IN NUMBER,
+    p_num_locations_per_customer  IN NUMBER,
+    p_num_bookings                IN NUMBER
+) AS
+BEGIN
+    populateDepot(p_num_depots);
+    populateSetupTeam(p_num_teams_per_depot);
+    populateCustomer(p_num_customers);
+    populateEventLocation(p_num_locations_per_customer);
+    populateBooking(p_num_bookings);
+END;
+/
+-- ========================================
+-- 6) MINIMAL SAMPLE DATA
+-- ========================================
+
+INSERT INTO DEPOT VALUES (
+    DepotTY(
+        'DEP001',
+        'North Depot',
+        'Via Roma 10',
+        'Milano',
+        'MI',
+        40,
+        'Lombardia',
+        MunicipalityListTY('Milano', 'Monza', 'Bergamo')
+    )
 );
 
 INSERT INTO DEPOT VALUES (
-    DepotTY('DEP001', 'North Depot', AddressTY('Via Roma', '10', '20100', 'Milano', 'MI'), 'Lombardia', 40)
+    DepotTY(
+        'DEP002',
+        'Central Depot',
+        'Via Firenze 22',
+        'Roma',
+        'RM',
+        35,
+        'Lazio',
+        MunicipalityListTY('Roma', 'Frosinone', 'Viterbo')
+    )
 );
 
-INSERT INTO DEPOT VALUES (
-    DepotTY('DEP002', 'Central Depot', AddressTY('Via Firenze', '22', '00100', 'Roma', 'RM'), 'Lazio', 35)
+INSERT INTO SETUPTEAM VALUES (
+    SetupTeamTY(
+        'TEAM001',
+        'Audio Crew North',
+        (SELECT REF(d) FROM DEPOT d WHERE d.ID = 'DEP001'),
+        MemberListTY(MemberTY('RSSMRA90A01F205X', 'Mario', 'Rossi'))
+    )
 );
 
-INSERT INTO SETUPTEAM VALUES (SetupTeamTY('TEAM001', 'Audio Crew North', 10, 0, 'DEP001'));
-INSERT INTO SETUPTEAM VALUES (SetupTeamTY('TEAM002', 'Video Crew Central', 10, 0, 'DEP002'));
-
-INSERT INTO EMPLOYEE VALUES (EmployeeTY('RSSMRA90A01F205X', 'Mario', 'Rossi', DATE '1990-01-01', DATE '2020-03-10', 'TEAM001'));
-INSERT INTO EMPLOYEE VALUES (EmployeeTY('VRDLGI92B14H501Y', 'Luigi', 'Verdi', DATE '1992-02-14', DATE '2021-06-01', 'TEAM002'));
+INSERT INTO SETUPTEAM VALUES (
+    SetupTeamTY(
+        'TEAM002',
+        'Video Crew Central',
+        (SELECT REF(d) FROM DEPOT d WHERE d.ID = 'DEP002'),
+        MemberListTY(MemberTY('VRDLGI92B14H501Y', 'Luigi', 'Verdi'))
+    )
+);
 
 BEGIN
-    proc_register_customer('CUST001', '333111222', 'alice@example.com', 'individual', 'Alice', 'Brown', NULL);
-    proc_register_customer('CUST002', '333999000', 'acme@example.com', 'company', NULL, NULL, 'ACME SRL');
+    proc_register_customer('CUST001', '333111222', 'alice@example.com', 'individual', 'Alice', 'Brown', NULL, NULL);
+    proc_register_customer('CUST002', '333999000', 'acme@example.com', 'company', NULL, NULL, 'IT12345678901', 'ACME SRL');
 END;
 /
 
@@ -367,34 +709,9 @@ END;
 /
 
 BEGIN
-    proc_add_booking('BOOK001', 'one-time', TRUNC(SYSDATE) + 1, 2, 1500, 'CUST001', 'LOC001', 'TEAM001');
+    proc_add_booking('BOOK001', 'one-time', TRUNC(SYSDATE) + 1, 2, 1500, 'CUST001', 'LOC001', 'TEAM001', 'website');
     proc_add_booking('BOOK002', 'promotional', TRUNC(SYSDATE) + 2, 1, 900, 'CUST002', 'LOC002', 'TEAM002', 'email');
 END;
 /
 
 COMMIT;
-
--- ========================================
--- 4) OPERATION TESTS
--- ========================================
-
-BEGIN
-    proc_register_customer('CUST003', '320111000', 'newcustomer@example.com', 'individual', 'John', 'Doe', NULL);
-END;
-/
-SELECT CustomerCode, CustomerType, Email FROM CUSTOMER WHERE CustomerCode = 'CUST003';
-
-BEGIN
-    proc_add_booking('BOOK003', 'seasonal', TRUNC(SYSDATE) + 3, 5, 3200, 'CUST001', 'LOC001', 'TEAM001', 'phone');
-END;
-/
-SELECT BookingCode, BookingType, TeamCode FROM BOOKING WHERE BookingCode = 'BOOK003';
-
-BEGIN
-    proc_add_event_location('LOC003', 'CUST001', 'Lake Road', '44', '20122', 'Milano', 'MI', 80, 180);
-END;
-/
-SELECT LocationCode, CustomerCode, BookingCount FROM EVENTLOCATION WHERE LocationCode = 'LOC003';
-
-SELECT func_get_team_by_location('CUST001', 'LOC001') AS TEAM_NAME FROM DUAL;
-SELECT * FROM vw_ranked_locations;

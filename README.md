@@ -49,8 +49,6 @@ DBProject/
 - Scripts/index.sql  
   Runs performance validation for the 5 operations (EXPLAIN PLAN + query output).
 
-Note: scripts were normalized using SQL comments (`-- ...`) instead of SQL*Plus `PROMPT` statements.
-
 ## Implemented Operations
 
 1. Register a new customer
@@ -84,7 +82,11 @@ Run from SQL*Plus/SQLcl with the application user (e.g., TEST):
 
 ### 3) Run the web application
 
-From Windows PowerShell:
+**Option 1: Using open.bat (Windows)**
+
+From the project root, double-click `App/open.bat` to launch the web application directly.
+
+**Option 2: Manual start from PowerShell**
 
 ```powershell
 Set-Location App

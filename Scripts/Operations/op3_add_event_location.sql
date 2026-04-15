@@ -1,0 +1,41 @@
+SET DEFINE OFF;
+SET SERVEROUTPUT ON;
+SET FEEDBACK ON;
+
+PROMPT ========================================
+PROMPT OPERATION 3 - ADD EVENT LOCATION
+PROMPT ========================================
+BEGIN
+   DELETE FROM PLAN_TABLE WHERE STATEMENT_ID = 'STAGEUP_OP3_INS';
+   EXECUTE IMMEDIATE 'DELETE FROM EVENTLOCATION WHERE Code = ''LOC9001''';
+   COMMIT;
+EXCEPTION
+   WHEN OTHERS THEN NULL;
+END;
+/
+
+PROMPT Step 1: EXPLAIN PLAN
+EXPLAIN PLAN SET STATEMENT_ID = 'STAGEUP_OP3_INS' FOR
+INSERT INTO EVENTLOCATION VALUES (
+    EventLocationTY(
+        'LOC9001',
+        'Trace Street',
+        99,
+        'Milano',
+        'MI',
+        '20100',
+        (SELECT REF(cu) FROM CUSTOMER cu WHERE cu.TaxCode = 'CUST001')
+    )
+);
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY('PLAN_TABLE', 'STAGEUP_OP3_INS', 'ALL'));
+
+PROMPT Step 2: RUN + OUTPUT
+BEGIN
+    proc_add_event_location('LOC9001', 'CUST001', 'Trace Street', '99', '20100', 'Milano', 'MI', 60, 100);
+END;
+/
+COMMIT;
+
+SELECT Code, City, ZIP
+FROM EVENTLOCATION
+WHERE Code = 'LOC9001';
